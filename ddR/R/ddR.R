@@ -18,13 +18,12 @@
 #' @useDynLib ddR
 #' @importFrom Rcpp sourceCpp
 
-#' @importFrom methods setClass setGeneric setMethod callNextMethod extends is new rbind2
+#' @import methods
 #' @importFrom utils head tail
 NULL
 
 # Package global variables live in this environment
 ddR.env <- new.env(emptyenv())
-ddR.env$RminorVersion <- R.version$minor
 
 # Updated as new classes of drivers are registered
 ddR.env$registeredDrivers <- list()
