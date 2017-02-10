@@ -69,10 +69,10 @@ length.DObject <- function(x) {
 }
 
 #' @export
-names.DObject <- function(x) {
+setMethod("names", "DObject", function(x) {
    nobj <- dlapply(parts(x),function(x) { as.list(names(x)) })
    unlist(collect(nobj))
-}
+})
 
 #' Sets the names of a distributed object
 #' @param x The object whose names to set.
@@ -95,7 +95,7 @@ setReplaceMethod("names", signature(x = "DObject", value = "ANY"), definition = 
 
   dmapply(function(x,y) { names(x) <- y; x }, parts(x), namesList,
           combine="c", nparts=totalParts(x))
-})
+}
 
 #' @export
 unique.DObject <- function(x, ...) {
@@ -200,9 +200,6 @@ rev.DObject <- function(x) {
   rev(collect(x))
 }
 
-setGeneric("colSums", signature="x")
-setGenericImplicit("colSums")
-
 #' Get the column sums for a distributed array or data.frame.
 #' @param x The object to get the column sums from.
 #' @param na.rm If TRUE, will remove NAs.
@@ -226,9 +223,6 @@ setMethod("colSums", signature(x="DObject"),
   unlist(colPartitionResults)
 })
 
-setGeneric("colMeans", signature="x")
-setGenericImplicit("colMeans")
-
 #' Gets the column means for a distributed array or data.frame.
 #' @param x The object to get the column means from.
 #' @param na.rm If TRUE, will remove NAs.
@@ -242,9 +236,6 @@ setMethod("colMeans", signature(x="DObject"),
     columnSums <- colSums(x,na.rm=na.rm)
     columnSums / nrow(x)
 })
-
-setGeneric("rowSums", signature="x")
-setGenericImplicit("rowSums")
 
 #' Gets the row sums for a distributed array or data.frame.
 #' @param x The object to get the row sums from.
@@ -269,9 +260,6 @@ setMethod("rowSums", signature(x="DObject"),
 
   unlist(rowPartitionResults)
 })
-
-setGeneric("rowMeans", signature="x")
-setGenericImplicit("rowMeans")
 
 #' Gets the row means for a distributed array or data.frame.
 #' @param x The object to get the row means from.
@@ -375,9 +363,6 @@ setReplaceMethod("dimnames", signature(x = "DObject", value = "list"), definitio
   dmapply(function(x,y,z) { dimnames(x) <- list(y,z); x }, parts(x), rowNamesPartition, colNamesPartition, output.type=x@type, combine="rbind",nparts=nparts(x))
 })
 
-setGeneric("colnames", signature="x")
-setGenericImplicit("colnames")
-
 #' Gets the colnames for the distributed object.
 #' @param x The distributed object to get the colnames for.
 #' @export
@@ -390,9 +375,6 @@ setMethod("colnames", "DObject",
 
     unlist(collect(colNames))
 })
-
-setGeneric("rownames", signature="x")
-setGenericImplicit("rownames")
 
 #' Gets the rownames for the distributed object.
 #' @param x The distributed object to get the rownames for.
@@ -437,23 +419,20 @@ setMethod("sum", "DObject",
     sum(sums)
 })
 
-setGeneric("mean", signature="x")
-setGenericImplicit("mean")
-
 #' Gets the mean value of the elements within the object.
 #' @param x The distributed object to get the mean of.
 #' @param trim Not supported yet.
 #' @param na.rm If TRUE, removes NA values.
 #' @param ... Other args.
 #' @export
-setMethod("mean", "DObject",
+mean.DObject <- 
   function(x,trim=0,na.rm=FALSE,...) {
 
     if(!is.darray(x) && !is.dframe(x)) stop("mean is only supported for DArrays and DFrames")
     if(trim !=0) stop("non-zero trim is currently not supported")
 
     mean(rowMeans(x,na.rm=na.rm))
-})
+  }
 
 #' @rdname bind_overrides
 #' @title rbindddR
