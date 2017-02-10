@@ -350,19 +350,6 @@ answer <- do_dmapply(driver, func, MoreArgs, dots)
        if(output.type == "darray") ptype<-"matrix"
        if(output.type == "dframe") ptype<-"data.frame"
        if(output.type == "sparse_darray") ptype<-c("dsCMatrix", "dgCMatrix")
-
-	if(combine == "rbind"){
-	   if(ddR.env$RminorVersion > 2) #If R >3.2, use new rbind
-	   	   combineFunc <- rbind
-           else
-	   	   combineFunc <- Matrix::rBind
-	}
-	else if(combine == "cbind"){
-	   if(ddR.env$RminorVersion > 2) #If R >3.2, use new cbind
-	   	   combineFunc <- cbind
-           else
-	   	   combineFunc <- Matrix::cBind
-       }
    }
    index<-1
    psizes<-array(0L,dim=c(totalParts,2)) #Stores partition sizes
@@ -376,7 +363,7 @@ answer <- do_dmapply(driver, func, MoreArgs, dots)
 	        if(combine == "c" || combine =="default"){
 	        	     outputObj[[index]] <- simplify2array(answer[(elemInEachPart[index]+1):elemInEachPart[index+1]], higher=FALSE)
                 }else{
-			     outputObj[[index]] <- do.call(combineFunc, answer[(elemInEachPart[index]+1):elemInEachPart[index+1]])
+			     outputObj[[index]] <- do.call(combine, answer[(elemInEachPart[index]+1):elemInEachPart[index+1]])
                 }
 	        if(!(class(outputObj[[index]]) %in% ptype)) {stop("Each partition of the result should be of type = ", ptype, ", to match with output.type =", output.type)}
 	     }

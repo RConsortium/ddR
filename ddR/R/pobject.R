@@ -122,15 +122,12 @@ setMethod("do_collect",signature("ParallelObj","integer"),
 	  else return (data.frame())
 	 }
 	 res<-NULL
-	 combinefunc<- cbind
-	 #If R <3.2, use old cBind
-         if(ddR.env$RminorVersion < 2) combinefunc <- Matrix::cBind
-
+	 
 	 for (index in seq(1, xparts, by=nparts(x)[2])){
 	     if(is.null(res))  #For sparse array rbind on null does not work
-		res<-do.call(combinefunc,x@pObj[index:(index+nparts(x)[2]-1)])
+		res<-do.call(cbind,x@pObj[index:(index+nparts(x)[2]-1)])
 	     else
-	        res<-rbind2(res, do.call(combinefunc,x@pObj[index:(index+nparts(x)[2]-1)]))
+	        res<-rbind2(res, do.call(cbind,x@pObj[index:(index+nparts(x)[2]-1)]))
          }
     	 return (res)
    } 

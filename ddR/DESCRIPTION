@@ -8,7 +8,7 @@ Description: Provides distributed data structures and simplifies
     distributed computing in R.
 Depends:
     methods,
-    R (>= 3.0.0)
+    R (>= 3.2.0)
 Imports:
     parallel,
     Rcpp
