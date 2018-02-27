@@ -22,34 +22,53 @@
 #' @importFrom utils head tail
 NULL
 
-# Package global variables live in this environment
-ddR.env <- new.env(emptyenv())
+DDR <- setRefClass("DDR",
+                   fields = c(backends = "list",
+                              drivers = "list",
+                              currentDriver = "ddRDriver"),
+                   methods = list(
+                       register_backend = function(name, backend) {
+                         stopifnot(isSingleString(name),
+                                   is.function(backend))
+                         .this$backends[[name]] <- backend
+                         invisible(backend)
+                       },
+                       get_backends = function() {
+                         .this$backends
+                       },
+                       use_backend = function(name) {
+                         supported <- available_backends()
+                         if(!(name %in% supported)){
+                             stop('name should be one of: "',
+                                  paste(supported, collapse = '", "'), '"')
+                         }
+                         driver <- .this$get_backends()[[name]]()
+                         .this$currentDriver <- driver
+                         .this$drivers <- c(.this$get_drivers(), list(driver))
+                         driver
+                       },
+                       get_drivers = function() {
+                         .this$drivers
+                       },
+                       get_current_driver = function() {
+                         .this$currentDriver
+                       }
+                   ))()
 
-# Updated as new classes of drivers are registered
-ddR.env$registeredDrivers <- list()
-
-# All driver instances which have been active in the current session
-ddR.env$activeDrivers <- list()
-
-# This represents the current driver which everything dispatches on
-ddR.env$driver <- NULL
-
-
-#' Register a driver
+#' Register a backend
 #'
-#' Used internally to manage the different driver classes that ddR knows
-#' about and supports. It should be used when creating new drivers for new
-#' backends. The current implementations call this in .onAttach()
+#' Packages implementing support for a backend should call this in
+#' .onLoad() so that ddR can instantiate a driver for the backend on
+#' user request.
 #'
-#' @param name character, the common name for this backend. This will be
-#'      returned from \code{\link{available_backends}}
-#' @param initfunc function capable of creating an instance of this driver
-#'      connected to a running backend.
-#'      Driver instances returned from this function should be a
-#'      subclass of \code{\linkS4class{ddRDriver}}
+#' @param name character, the common name for this backend. This will
+#'     be returned from \code{\link{available_backends}}
+#' @param backend function capable of creating a driver (of class
+#'     \code{\linkS4class{ddRDriver}}) connected to a running backend.
+#' 
 #' @export
-register_driver <- function(name, initfunc){
-    ddR.env$registeredDrivers[[name]] <- initfunc
+register_backend <- function(name, backend){
+    DDR$register_driver(name, backend)
 }
 
 
@@ -59,7 +78,7 @@ register_driver <- function(name, initfunc){
 #' @export
 #' @seealso \code{\link{useBackend}}
 available_backends <- function(){
-    names(ddR.env$registeredDrivers)
+    names(DDR$get_backends())
 }
 
 
@@ -103,22 +122,8 @@ available_backends <- function(){
 #' }
 #' @export
 useBackend <- function(name = "parallel", ...) {
-
-    supported <- available_backends()
-    if(!(name %in% supported)){
-        stop('name should be one of: "',
-              paste(supported, collapse = '", "'), '"')
-    }
-
-    initfunc <- ddR.env$registeredDrivers[[name]]
-
-    ddR.env$driver <- initfunc(...)
-
-    # Append to the list of all active drivers in this session
-    ddR.env$activeDrivers <- c(ddR.env$activeDrivers,
-                            list(ddR.env$driver))
-
-    return(ddR.env$driver)
+### FIXME: rename to use_backend()? Camel-casing is inconsistent with above.
+    invisible(DDR$use_backend(name))
 }
 
 
@@ -142,7 +147,7 @@ setClass("ddRDriver", slots = c(DListClass = "character",
 setGeneric("shutdown", function(x) standardGeneric("shutdown"))
 
 #' @export
-setMethod("shutdown", "missing", function() shutdown(ddR.env$driver))
+setMethod("shutdown", "missing", function() shutdown(DDR$get_current_driver()))
 
 
 # Backend-specific dmapply logic. This is a required override for all
@@ -166,9 +171,9 @@ setMethod("shutdown", "missing", function() shutdown(ddR.env$driver))
 #               standardGeneric("do_dmapply"),
 #           signature=c("driver", "func"))
 
-setGeneric("do_dmapply", function(driver, func, MoreArgs, dots){
-    standardGeneric("do_dmapply")
-}, signature = "driver")
+setGeneric("do_dmapply",
+           function(driver, func, MoreArgs, dots) standardGeneric("do_dmapply"),
+           signature = "driver")
 
 
 #' Combines a list of partitions into a single distributed
@@ -237,8 +242,12 @@ validate_dargs <- function(...){
     dargs <- list(...)
     if(length(dargs) == 0) stop("Need to supply at least one iterable item.")
 
+### FIXME: seems like we do not care about the current driver, just
+### that every argument is computable by the same backend.  Could have
+### a resolveBackend(x, y) generic that could move/map data somehow
+### based on the pair of backends.
     check_backend_return_length <- function(x){
-        if(is(x,"DObject") && !identical(x@driver, ddR.env$driver))
+        if(is(x,"DObject") && !identical(x@driver, DDR$get_current_driver()))
             stop(paste0("An argument passed in was created with backend '",
                         x@driver@name,"'; the currently loaded backend is '",
                         ddR.env$driver@name,"'."))
